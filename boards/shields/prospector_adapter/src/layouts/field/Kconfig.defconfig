@@ -5,6 +5,15 @@ config ZMK_DISPLAY_STATUS_SCREEN_CUSTOM
     select LV_COLOR_SCREEN_TRANSP
     select ZMK_WPM
 
+config PROSPECTOR_ESB_MODE
+    bool "ESB Mode - Disable battery and connection status display"
+    default n
+    help
+      Enable this option when using ESB (Enhanced ShockBurst) communication protocol.
+      ESB does not pass battery status from peripherals, so this disables the
+      battery label and USB/BLE output status widgets, providing more space
+      for the animation.
+
 config PROSPECTOR_ANIMATION_WPM_REFERENCE
     int "WPM value at which animation reaches max speed"
     default 70
