@@ -37,22 +37,35 @@ ZMK_SUBSCRIPTION(widget_layer_display, zmk_layer_state_changed);
 
 int zmk_widget_layer_display_init(struct zmk_widget_layer_display *widget, lv_obj_t *parent) {
     widget->obj = lv_obj_create(parent);
+#ifdef CONFIG_PROSPECTOR_ESB_MODE
+    lv_obj_set_size(widget->obj, 260, 80);
+#else
     lv_obj_set_size(widget->obj, 260, 6);
+#endif
     lv_obj_set_style_bg_opa(widget->obj, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(widget->obj, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(widget->obj, 0, LV_PART_MAIN);
 
+#ifdef CONFIG_PROSPECTOR_ESB_MODE
+    int dot_width = (260 - (LAYER_DOT_COUNT - 1) * 6) / LAYER_DOT_COUNT;
+    int dot_gap = 6;
+    int dot_height = 80;
+    int dot_radius = 6;
+#else
     int dot_width = (260 - (LAYER_DOT_COUNT - 1) * 3) / LAYER_DOT_COUNT;
     int dot_gap = 3;
+    int dot_height = 6;
+    int dot_radius = 2;
+#endif
 
     for (int i = 0; i < LAYER_DOT_COUNT; i++) {
         widget->dots[i] = lv_obj_create(widget->obj);
-        lv_obj_set_size(widget->dots[i], dot_width, 6);
+        lv_obj_set_size(widget->dots[i], dot_width, dot_height);
         lv_obj_set_pos(widget->dots[i], i * (dot_width + dot_gap), 0);
         lv_obj_set_style_bg_color(widget->dots[i], lv_color_hex(DISPLAY_COLOR_LAYER_DOT_INACTIVE), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(widget->dots[i], LV_OPA_COVER, LV_PART_MAIN);
         lv_obj_set_style_border_width(widget->dots[i], 0, LV_PART_MAIN);
-        lv_obj_set_style_radius(widget->dots[i], 2, LV_PART_MAIN);
+        lv_obj_set_style_radius(widget->dots[i], dot_radius, LV_PART_MAIN);
         lv_obj_set_style_pad_all(widget->dots[i], 0, LV_PART_MAIN);
     }
 

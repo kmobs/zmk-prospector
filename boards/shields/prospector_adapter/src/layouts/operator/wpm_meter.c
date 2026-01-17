@@ -157,14 +157,22 @@ ZMK_SUBSCRIPTION(widget_wpm_meter_layer, zmk_layer_state_changed);
 
 int zmk_widget_wpm_meter_init(struct zmk_widget_wpm_meter *widget, lv_obj_t *parent) {
     widget->obj = lv_obj_create(parent);
+#ifdef CONFIG_PROSPECTOR_ESB_MODE
+    lv_obj_set_size(widget->obj, 260, 128);
+#else
     lv_obj_set_size(widget->obj, 260, 90);
+#endif
     lv_obj_set_style_bg_opa(widget->obj, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(widget->obj, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(widget->obj, 0, LV_PART_MAIN);
 
     int bar_width = 8;
     int bar_gap = 2;
+#ifdef CONFIG_PROSPECTOR_ESB_MODE
+    int bar_height = 128;
+#else
     int bar_height = 90;
+#endif
     int total_width = WPM_BAR_COUNT * bar_width + (WPM_BAR_COUNT - 1) * bar_gap;
     int start_x = (260 - total_width) / 2;
 

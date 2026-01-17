@@ -13,4 +13,13 @@ config ZMK_WPM
 config LV_Z_MEM_POOL_SIZE
     default 20000
 
+config PROSPECTOR_ESB_MODE
+    bool "ESB Mode - Disable battery and connection status display"
+    default n
+    help
+      Enable this option when using ESB (Enhanced ShockBurst) communication protocol.
+      ESB does not pass battery status from peripherals, so this disables the
+      battery circles and USB/BLE output status widgets, providing more space
+      for other display elements.
+
 endif
