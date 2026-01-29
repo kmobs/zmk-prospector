@@ -163,8 +163,6 @@ static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 static lv_timer_t *animation_timer = NULL;
 static uint32_t last_timer_period = 33;
 
-static K_MUTEX_DEFINE(animation_state_lock);
-
 static float lines_noise(float x, float y, float t) {
     float n1 = fast_sin(x * 0.007f + t * 0.15f) * fast_cos(y * 0.008f - t * 0.12f);
     float n2 = fast_sin(y * 0.006f + t * 0.1f + x * 0.005f);
@@ -283,9 +281,6 @@ static void lines_update(void) {
 
     float time = lines_time;
 
-    // Acquire lock before writing animation state
-    k_mutex_lock(&animation_state_lock, K_FOREVER);
-
     for (int row = 0; row < GRID_ROWS; row++) {
             for (int col = 0; col < GRID_COLS; col++) {
                 int line_idx = row * GRID_COLS + col;
@@ -323,8 +318,6 @@ static void lines_update(void) {
             }
     }
 
-    k_mutex_unlock(&animation_state_lock);
-
     uint32_t elapsed = k_cycle_get_32() - start;
     perf_update_us = k_cyc_to_us_floor32(elapsed);
 }
@@ -341,9 +334,6 @@ static void draw_cb(lv_event_t *e) {
     int32_t obj_y1 = obj_coords.y1;
 
     uint64_t excluded = label_excluded_cells | modifier_excluded_cells;
-
-    // Acquire lock to safely read animation state
-    k_mutex_lock(&animation_state_lock, K_FOREVER);
 
     lv_draw_line_dsc_t line_dsc;
     lv_draw_line_dsc_init(&line_dsc);
@@ -379,8 +369,6 @@ static void draw_cb(lv_event_t *e) {
             lv_draw_line(layer, &line_dsc);
         }
     }
-
-    k_mutex_unlock(&animation_state_lock);
 
     uint32_t elapsed = k_cycle_get_32() - start;
     perf_draw_us = k_cyc_to_us_floor32(elapsed);
@@ -420,6 +408,9 @@ static void timer_cb(lv_timer_t *timer) {
 
 int zmk_widget_line_segments_init(struct zmk_widget_line_segments *widget, lv_obj_t *parent) {
     init_lut();
+
+    // Initialize last_keypress_time to now so idle_ms calculations are valid
+    last_keypress_time = k_uptime_get_32();
 
     for (int row = 0; row < GRID_ROWS; row++) {
         for (int col = 0; col < GRID_COLS; col++) {
