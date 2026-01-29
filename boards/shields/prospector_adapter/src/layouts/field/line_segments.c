@@ -356,6 +356,11 @@ static void draw_cb(lv_event_t *e) {
             line_dsc.opa = line_opacity[line_idx];
 
             uint8_t idx = line_endpoint_idx[line_idx];
+            // Bounds check to prevent out-of-bounds array access
+            if (idx >= LINE_ENDPOINT_NUM_ANGLES) {
+                idx = LINE_ENDPOINT_NUM_ANGLES - 1;
+            }
+            
             int8_t dx_base = line_endpoints[idx][0];
             int8_t dy_base = line_endpoints[idx][1];
             float scale = line_length_scale[line_idx];
