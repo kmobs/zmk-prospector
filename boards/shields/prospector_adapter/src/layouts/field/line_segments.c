@@ -308,9 +308,10 @@ static void lines_update(void) {
         intensity = 0.0f;
     }
 
-    float time = lines_time;
+        float time = lines_time;
+        bool invalid_state = false;
 
-    for (int row = 0; row < GRID_ROWS; row++) {
+        for (int row = 0; row < GRID_ROWS; row++) {
             for (int col = 0; col < GRID_COLS; col++) {
                 int line_idx = row * GRID_COLS + col;
                 int cx = grid_cx[col];
@@ -344,7 +345,29 @@ static void lines_update(void) {
                 float opa_variation = spatial_var * OPACITY_VARIATION_SCALE * intensity;
                 float final_opa = base_opa + opa_variation - OPACITY_DECAY_FACTOR * intensity;
                 line_opacity[line_idx] = (lv_opa_t)(clampf(final_opa, OPACITY_MIN, OPACITY_MAX) * 255.0f);
+
+                if (!isfinite(smoothed_angles[line_idx]) || !isfinite(line_length_scale[line_idx])) {
+                    invalid_state = true;
+                    break;
+                }
             }
+            if (invalid_state) {
+                break;
+            }
+    }
+
+    if (invalid_state) {
+        for (int row = 0; row < GRID_ROWS; row++) {
+            for (int col = 0; col < GRID_COLS; col++) {
+                int line_idx = row * GRID_COLS + col;
+                smoothed_angles[line_idx] = -M_PI_4;
+                line_endpoint_idx[line_idx] = (uint8_t)angle_to_index(-M_PI_4);
+                line_length_scale[line_idx] = clampf(LENGTH_BASE_IDLE, LENGTH_MIN, LENGTH_MAX);
+                line_opacity[line_idx] = (lv_opa_t)(clampf(OPACITY_BASE_IDLE, OPACITY_MIN, OPACITY_MAX) * 255.0f);
+            }
+        }
+        flow = 0.0f;
+        intensity = 0.0f;
     }
 
     uint32_t elapsed = k_cycle_get_32() - start;
@@ -450,6 +473,9 @@ int zmk_widget_line_segments_init(struct zmk_widget_line_segments *widget, lv_ob
         for (int col = 0; col < GRID_COLS; col++) {
             int line_idx = row * GRID_COLS + col;
             smoothed_angles[line_idx] = -M_PI_4;
+            line_endpoint_idx[line_idx] = (uint8_t)angle_to_index(-M_PI_4);
+            line_length_scale[line_idx] = clampf(LENGTH_BASE_IDLE, LENGTH_MIN, LENGTH_MAX);
+            line_opacity[line_idx] = (lv_opa_t)(clampf(OPACITY_BASE_IDLE, OPACITY_MIN, OPACITY_MAX) * 255.0f);
         }
     }
 
