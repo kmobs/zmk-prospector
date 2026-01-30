@@ -170,9 +170,6 @@ static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 static lv_timer_t *animation_timer = NULL;
 static uint32_t last_timer_period = 33;
 
-// Forward declaration for async invalidation
-static void invalidate_all_widgets_async(void *arg);
-
 static float lines_noise(float x, float y, float t) {
     float n1 = fast_sin(x * 0.007f + t * 0.15f) * fast_cos(y * 0.008f - t * 0.12f);
     float n2 = fast_sin(y * 0.006f + t * 0.1f + x * 0.005f);
@@ -245,6 +242,13 @@ static void update_label_excluded_cells(void) {
     }
 }
 
+static void invalidate_all_widgets_async(void *arg) {
+    struct zmk_widget_line_segments *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
+        lv_obj_invalidate(widget->obj);
+    }
+}
+
 static void label_size_changed_cb(lv_event_t *e) {
     update_label_excluded_cells();
 
@@ -255,13 +259,6 @@ static void label_size_changed_cb(lv_event_t *e) {
 static uint32_t perf_update_us = 0;
 static uint32_t perf_draw_us = 0;
 static uint32_t perf_frame_count = 0;
-
-static void invalidate_all_widgets_async(void *arg) {
-    struct zmk_widget_line_segments *widget;
-    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
-        lv_obj_invalidate(widget->obj);
-    }
-}
 
 static void lines_update(void) {
     k_mutex_lock(&animation_state_lock, K_FOREVER);
