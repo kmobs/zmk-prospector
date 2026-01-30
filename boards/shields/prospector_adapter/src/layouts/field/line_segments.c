@@ -67,10 +67,19 @@ static const int16_t grid_cx[GRID_COLS] = {18, 52, 86, 120, 154, 188, 222, 256};
 static const int16_t grid_cy[GRID_ROWS] = {18, 52, 86, 120, 154, 188};
 
 static inline int angle_to_index(float angle) {
+    if (!isfinite(angle)) {
+        return 0;
+    }
     int deg = (int)(angle * (180.0f / M_PI));
     deg = deg % 360;
     if (deg < 0) deg += 360;
-    return deg / LINE_ENDPOINT_ANGLE_STEP;
+    int index = deg / LINE_ENDPOINT_ANGLE_STEP;
+    if (index < 0) {
+        index = 0;
+    } else if (index >= LINE_ENDPOINT_NUM_ANGLES) {
+        index = LINE_ENDPOINT_NUM_ANGLES - 1;
+    }
+    return index;
 }
 
 #define LUT_SIZE 256
@@ -263,11 +272,24 @@ static void lines_update(void) {
     static float flow_at_stop = 0.0f;
 
     if (current_wpm > 0 || idle_ms < INTENSITY_DECAY_MS / 10) {
-        float speed = ANIM_BASE_SPEED + (current_wpm / (float)CONFIG_PROSPECTOR_ANIMATION_WPM_REFERENCE) * ANIM_WPM_SPEED_MULTIPLIER;
+        float wpm_ref = (float)CONFIG_PROSPECTOR_ANIMATION_WPM_REFERENCE;
+        if (wpm_ref < 1.0f) {
+            wpm_ref = 1.0f;
+        }
+        float speed = ANIM_BASE_SPEED + (current_wpm / wpm_ref) * ANIM_WPM_SPEED_MULTIPLIER;
+        if (!isfinite(speed)) {
+            speed = ANIM_BASE_SPEED;
+        }
         lines_time += speed * delta_time * 60.0f;
+        if (!isfinite(lines_time)) {
+            lines_time = 0.0f;
+        }
     }
 
     idle_wobble_time += ANIM_IDLE_WOBBLE_SPEED * delta_time * 60.0f;
+    if (!isfinite(idle_wobble_time)) {
+        idle_wobble_time = 0.0f;
+    }
 
     decay_param_t flow_state = {flow, flow_at_stop, 0};
     flow_state = compute_decay_param(flow_state, current_wpm, idle_ms, FLOW_DECAY_MS);
@@ -278,6 +300,13 @@ static void lines_update(void) {
     intensity_state = compute_decay_param(intensity_state, current_wpm, idle_ms, INTENSITY_DECAY_MS);
     intensity = intensity_state.current_value;
     intensity_at_stop = intensity_state.at_stop_value;
+
+    if (!isfinite(flow)) {
+        flow = 0.0f;
+    }
+    if (!isfinite(intensity)) {
+        intensity = 0.0f;
+    }
 
     float time = lines_time;
 
