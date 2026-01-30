@@ -88,18 +88,12 @@ static void init_lut(void) {
 
 static inline float fast_sin(float x) {
     float normalized = x * (LUT_SIZE / TWO_PI);
-    if (!isfinite(normalized)) {
-        return 0.0f;
-    }
     int index = ((int)normalized) & LUT_MASK;
     return sin_lut[index];
 }
 
 static inline float fast_cos(float x) {
     float normalized = (x + M_PI / 2.0f) * (LUT_SIZE / TWO_PI);
-    if (!isfinite(normalized)) {
-        return 1.0f;
-    }
     int index = ((int)normalized) & LUT_MASK;
     return sin_lut[index];
 }
