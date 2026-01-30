@@ -328,7 +328,8 @@ static void lines_update(void) {
     // Global state validation and recovery: if any value is non-finite, reset all animation state
     bool invalid_state = false;
     for (int i = 0; i < GRID_COLS * GRID_ROWS; i++) {
-        if (!isfinite(smoothed_angles[i]) || !isfinite(line_length_scale[i]) || !isfinite(line_opacity[i])) {
+        if (!isfinite(smoothed_angles[i]) || !isfinite(line_length_scale[i]) ||
+            (line_opacity[i] < 0 || line_opacity[i] > 255)) {
             invalid_state = true;
             break;
         }
