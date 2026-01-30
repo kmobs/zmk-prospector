@@ -246,16 +246,20 @@ static void update_label_excluded_cells(void) {
 static void label_size_changed_cb(lv_event_t *e) {
     update_label_excluded_cells();
 
-    // Invalidate widget to redraw with new exclusions
-    struct zmk_widget_line_segments *widget;
-    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
-        lv_obj_invalidate(widget->obj);
-    }
+    // Defer invalidation to LVGL thread to avoid concurrent LVGL state access
+    lv_async_call(invalidate_all_widgets_async, NULL);
 }
 
 static uint32_t perf_update_us = 0;
 static uint32_t perf_draw_us = 0;
 static uint32_t perf_frame_count = 0;
+
+static void invalidate_all_widgets_async(void *arg) {
+    struct zmk_widget_line_segments *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
+        lv_obj_invalidate(widget->obj);
+    }
+}
 
 static void lines_update(void) {
     k_mutex_lock(&animation_state_lock, K_FOREVER);
@@ -420,10 +424,8 @@ static void timer_cb(lv_timer_t *timer) {
 
     lines_update();
 
-    struct zmk_widget_line_segments *widget;
-    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
-        lv_obj_invalidate(widget->obj);
-    }
+    // Defer invalidation to LVGL thread to avoid concurrent LVGL state access from timer context
+    lv_async_call(invalidate_all_widgets_async, NULL);
 }
 
 int zmk_widget_line_segments_init(struct zmk_widget_line_segments *widget, lv_obj_t *parent) {
