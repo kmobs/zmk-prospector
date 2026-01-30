@@ -325,6 +325,30 @@ static void lines_update(void) {
             }
     }
 
+    // Global state validation and recovery: if any value is non-finite, reset all animation state
+    bool invalid_state = false;
+    for (int i = 0; i < GRID_COLS * GRID_ROWS; i++) {
+        if (!isfinite(smoothed_angles[i]) || !isfinite(line_length_scale[i]) || !isfinite(line_opacity[i])) {
+            invalid_state = true;
+            break;
+        }
+    }
+    if (invalid_state) {
+        for (int row = 0; row < GRID_ROWS; row++) {
+            for (int col = 0; col < GRID_COLS; col++) {
+                int line_idx = row * GRID_COLS + col;
+                smoothed_angles[line_idx] = -M_PI_4;
+                line_length_scale[line_idx] = LENGTH_BASE_IDLE;
+                line_opacity[line_idx] = (lv_opa_t)(OPACITY_BASE_IDLE * 255.0f);
+                line_endpoint_idx[line_idx] = angle_to_index(-M_PI_4);
+            }
+        }
+        flow = 0.0f;
+        intensity = 0.0f;
+        lines_time = 0.0f;
+        idle_wobble_time = 0.0f;
+    }
+
     uint32_t elapsed = k_cycle_get_32() - start;
     perf_update_us = k_cyc_to_us_floor32(elapsed);
 }
@@ -339,6 +363,13 @@ static void draw_cb(lv_event_t *e) {
 
     int32_t obj_x1 = obj_coords.x1;
     int32_t obj_y1 = obj_coords.y1;
+
+    // Skip drawing if widget is not properly positioned yet (all coords at 0)
+    // This prevents drawing garbage during initial layout phase
+    if (obj_x1 == 0 && obj_y1 == 0 && obj_coords.x2 == 0 && obj_coords.y2 == 0) {
+        k_mutex_unlock(&animation_state_lock);
+        return;
+    }
 
     uint64_t excluded = label_excluded_cells | modifier_excluded_cells;
 
