@@ -70,7 +70,11 @@ static inline int angle_to_index(float angle) {
     int deg = (int)(angle * (180.0f / M_PI));
     deg = deg % 360;
     if (deg < 0) deg += 360;
-    return deg / LINE_ENDPOINT_ANGLE_STEP;
+    int index = deg / LINE_ENDPOINT_ANGLE_STEP;
+    // Ensure index is in valid range [0, LINE_ENDPOINT_NUM_ANGLES-1]
+    if (index < 0) index = 0;
+    if (index >= LINE_ENDPOINT_NUM_ANGLES) index = LINE_ENDPOINT_NUM_ANGLES - 1;
+    return index;
 }
 
 #define LUT_SIZE 256
@@ -356,6 +360,10 @@ static void draw_cb(lv_event_t *e) {
             line_dsc.opa = line_opacity[line_idx];
 
             uint8_t idx = line_endpoint_idx[line_idx];
+            // Bounds check to prevent reading outside array
+            if (idx >= LINE_ENDPOINT_NUM_ANGLES) {
+                idx = LINE_ENDPOINT_NUM_ANGLES - 1;
+            }
             int8_t dx_base = line_endpoints[idx][0];
             int8_t dy_base = line_endpoints[idx][1];
             float scale = line_length_scale[line_idx];
