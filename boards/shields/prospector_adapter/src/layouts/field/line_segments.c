@@ -170,6 +170,9 @@ static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 static lv_timer_t *animation_timer = NULL;
 static uint32_t last_timer_period = 33;
 
+// Forward declaration for async invalidation
+static void invalidate_all_widgets_async(void *arg);
+
 static float lines_noise(float x, float y, float t) {
     float n1 = fast_sin(x * 0.007f + t * 0.15f) * fast_cos(y * 0.008f - t * 0.12f);
     float n2 = fast_sin(y * 0.006f + t * 0.1f + x * 0.005f);
