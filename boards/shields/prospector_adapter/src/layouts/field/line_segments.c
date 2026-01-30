@@ -10,7 +10,6 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/events/wpm_state_changed.h>
 #include <zephyr/kernel.h>
-#include <zephyr/kernel/mutex.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
