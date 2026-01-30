@@ -10,6 +10,7 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/events/wpm_state_changed.h>
 #include <zephyr/kernel.h>
+#include <zephyr/kernel/mutex.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
@@ -156,9 +157,12 @@ static int current_wpm = 0;
 static bool animation_started = false;
 
 static float smoothed_angles[GRID_COLS * GRID_ROWS];
-static uint8_t line_endpoint_idx[GRID_COLS * GRID_ROWS];
-static float line_length_scale[GRID_COLS * GRID_ROWS];
-static lv_opa_t line_opacity[GRID_COLS * GRID_ROWS];
+static uint8_t line_endpoint_idx[GRID_COLS * GRID_ROWS] = {0};
+static float line_length_scale[GRID_COLS * GRID_ROWS] = {0};
+static lv_opa_t line_opacity[GRID_COLS * GRID_ROWS] = {0};
+
+// Protect animation state from race conditions between timer and draw threads
+static struct k_mutex animation_state_lock;
 
 static uint64_t label_excluded_cells = 0;     // From labels (computed from width)
 static uint64_t modifier_excluded_cells = 0;  // From modifiers (set via API)
@@ -254,6 +258,8 @@ static uint32_t perf_draw_us = 0;
 static uint32_t perf_frame_count = 0;
 
 static void lines_update(void) {
+    k_mutex_lock(&animation_state_lock, K_FOREVER);
+
     uint32_t start = k_cycle_get_32();
 
     const float delta_time = 1.0f / 30.0f;
@@ -324,9 +330,13 @@ static void lines_update(void) {
 
     uint32_t elapsed = k_cycle_get_32() - start;
     perf_update_us = k_cyc_to_us_floor32(elapsed);
+
+    k_mutex_unlock(&animation_state_lock);
 }
 
 static void draw_cb(lv_event_t *e) {
+    k_mutex_lock(&animation_state_lock, K_FOREVER);
+
     uint32_t start = k_cycle_get_32();
     lv_obj_t *obj = lv_event_get_target(e);
     lv_layer_t *layer = lv_event_get_layer(e);
@@ -386,6 +396,8 @@ static void draw_cb(lv_event_t *e) {
         LOG_INF("perf: update=%uus draw=%uus", perf_update_us, perf_draw_us);
         perf_frame_count = 0;
     }
+
+    k_mutex_unlock(&animation_state_lock);
 }
 
 static void timer_cb(lv_timer_t *timer) {
