@@ -10,6 +10,8 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 #include <zmk/event_manager.h>
 #include <zmk/events/wpm_state_changed.h>
 #include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/display.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f
@@ -99,7 +101,7 @@ static inline float fast_cos(float x) {
 }
 
 static inline float clampf(float val, float min_val, float max_val) {
-    if (val < min_val) return min_val;
+    if (!(val >= min_val)) return min_val;  // Also catches NaN
     if (val > max_val) return max_val;
     return val;
 }
@@ -140,6 +142,11 @@ static inline decay_param_t compute_decay_param(
     }
 
     result.current_value += (result.target_value - result.current_value) * rate;
+
+    // Guard against NaN/Inf propagation from float math
+    if (!isfinite(result.current_value)) result.current_value = 0.0f;
+    if (!isfinite(result.at_stop_value)) result.at_stop_value = 0.0f;
+
     return result;
 }
 
@@ -418,6 +425,8 @@ static void draw_cb(lv_event_t *e) {
 }
 
 static void timer_cb(lv_timer_t *timer) {
+    static uint32_t keepalive_counter = 0;
+
     uint32_t now = k_uptime_get_32();
     uint32_t idle_ms = now - last_keypress_time;
 
@@ -442,6 +451,24 @@ static void timer_cb(lv_timer_t *timer) {
     struct zmk_widget_line_segments *widget;
     SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
         lv_obj_invalidate(widget->obj);
+    }
+
+    // Display keep-alive: periodically re-assert display-on and force a full
+    // screen redraw. This guards against the display controller silently
+    // entering DISP_OFF or SLEEP_IN due to SPI glitches, transient power
+    // issues, or any other unexpected state loss.
+    keepalive_counter++;
+    if (keepalive_counter >= 60) {  // ~30s at idle (500ms period), ~2s at 30Hz
+        keepalive_counter = 0;
+        const struct device *disp = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+        if (device_is_ready(disp)) {
+            display_blanking_off(disp);
+        }
+        // Force full screen invalidation to ensure LVGL redraws everything
+        lv_obj_t *scr = lv_scr_act();
+        if (scr) {
+            lv_obj_invalidate(scr);
+        }
     }
 }
 
