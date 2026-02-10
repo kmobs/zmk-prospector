@@ -71,16 +71,21 @@ static void update_output_widget(struct zmk_widget_output *widget) {
     }
 }
 
+static void output_update_work_handler(struct k_work *work) {
+    struct zmk_widget_output *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
+        update_output_widget(widget);
+    }
+}
+
+static K_WORK_DEFINE(output_update_work, output_update_work_handler);
+
 static int endpoint_changed_listener(const zmk_event_t *eh) {
     const struct zmk_endpoint_changed *event = as_zmk_endpoint_changed(eh);
     if (event) {
         struct zmk_endpoint_instance selected = zmk_endpoints_selected();
         active_transport = selected.transport;
-
-        struct zmk_widget_output *widget;
-        SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
-            update_output_widget(widget);
-        }
+        k_work_submit_to_queue(zmk_display_work_q(), &output_update_work);
     }
     return ZMK_EV_EVENT_BUBBLE;
 }
@@ -89,11 +94,7 @@ static int ble_active_profile_changed_listener(const zmk_event_t *eh) {
     const struct zmk_ble_active_profile_changed *event = as_zmk_ble_active_profile_changed(eh);
     if (event) {
         active_profile_index = event->index;
-
-        struct zmk_widget_output *widget;
-        SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
-            update_output_widget(widget);
-        }
+        k_work_submit_to_queue(zmk_display_work_q(), &output_update_work);
     }
     return ZMK_EV_EVENT_BUBBLE;
 }

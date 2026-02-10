@@ -163,9 +163,6 @@ static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 static lv_timer_t *animation_timer = NULL;
 static uint32_t last_timer_period = 33;
 
-// Forward declaration for async invalidation
-static void invalidate_all_widgets_async(void *arg);
-
 static float lines_noise(float x, float y, float t) {
     float n1 = fast_sin(x * 0.007f + t * 0.15f) * fast_cos(y * 0.008f - t * 0.12f);
     float n2 = fast_sin(y * 0.006f + t * 0.1f + x * 0.005f);
@@ -241,20 +238,16 @@ static void update_label_excluded_cells(void) {
 static void label_size_changed_cb(lv_event_t *e) {
     update_label_excluded_cells();
 
-    // Defer invalidation to LVGL thread to avoid concurrent LVGL state access
-    lv_async_call(invalidate_all_widgets_async, NULL);
-}
-
-static uint32_t perf_update_us = 0;
-static uint32_t perf_draw_us = 0;
-static uint32_t perf_frame_count = 0;
-
-static void invalidate_all_widgets_async(void *arg) {
+    // Invalidate widgets to redraw with new exclusions
     struct zmk_widget_line_segments *widget;
     SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
         lv_obj_invalidate(widget->obj);
     }
 }
+
+static uint32_t perf_update_us = 0;
+static uint32_t perf_draw_us = 0;
+static uint32_t perf_frame_count = 0;
 
 static void lines_update(void) {
     uint32_t start = k_cycle_get_32();
@@ -275,6 +268,12 @@ static void lines_update(void) {
     }
 
     idle_wobble_time += ANIM_IDLE_WOBBLE_SPEED * delta_time * 60.0f;
+
+    // Prevent float precision loss on long-running devices by wrapping time values.
+    // The noise/sine functions use these as phase inputs, so wrapping at a large
+    // value is transparent (brief visual discontinuity every ~5 days at idle rate).
+    if (lines_time > 100000.0f) lines_time -= 100000.0f;
+    if (idle_wobble_time > 100000.0f) idle_wobble_time -= 100000.0f;
 
     decay_param_t flow_state = {flow, flow_at_stop, 0};
     flow_state = compute_decay_param(flow_state, current_wpm, idle_ms, FLOW_DECAY_MS);
@@ -368,7 +367,6 @@ static void draw_cb(lv_event_t *e) {
     // Skip drawing if widget is not properly positioned yet (all coords at 0)
     // This prevents drawing garbage during initial layout phase
     if (obj_x1 == 0 && obj_y1 == 0 && obj_coords.x2 == 0 && obj_coords.y2 == 0) {
-        k_mutex_unlock(&animation_state_lock);
         return;
     }
 
@@ -439,8 +437,12 @@ static void timer_cb(lv_timer_t *timer) {
 
     lines_update();
 
-    // Defer invalidation to LVGL thread to avoid concurrent LVGL state access from timer context
-    lv_async_call(invalidate_all_widgets_async, NULL);
+    // Invalidate all widgets to trigger redraw with updated line state.
+    // timer_cb runs within lv_task_handler(), so LVGL calls are safe here.
+    struct zmk_widget_line_segments *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) {
+        lv_obj_invalidate(widget->obj);
+    }
 }
 
 int zmk_widget_line_segments_init(struct zmk_widget_line_segments *widget, lv_obj_t *parent) {

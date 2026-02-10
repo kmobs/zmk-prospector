@@ -108,13 +108,13 @@ static void wpm_smooth_work_handler(struct k_work *work) {
     }
 
     if (!at_target || peak_position > active_bars) {
-        k_work_schedule(&wpm_smooth_work, K_MSEC(33));
+        k_work_schedule_for_queue(zmk_display_work_q(), &wpm_smooth_work, K_MSEC(33));
     }
 }
 
 static void wpm_meter_update_cb(struct wpm_meter_state state) {
     target_wpm = (float)state.wpm;
-    k_work_schedule(&wpm_smooth_work, K_NO_WAIT);
+    k_work_schedule_for_queue(zmk_display_work_q(), &wpm_smooth_work, K_NO_WAIT);
 }
 
 static struct wpm_meter_state wpm_meter_get_state(const zmk_event_t *eh) {
