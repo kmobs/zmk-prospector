@@ -453,21 +453,15 @@ static void timer_cb(lv_timer_t *timer) {
         lv_obj_invalidate(widget->obj);
     }
 
-    // Display keep-alive: periodically re-assert display-on and force a full
-    // screen redraw. This guards against the display controller silently
-    // entering DISP_OFF or SLEEP_IN due to SPI glitches, transient power
-    // issues, or any other unexpected state loss.
+    // Display keep-alive: periodically re-assert display-on to guard against
+    // the ST7789V silently entering DISP_OFF or SLEEP_IN due to SPI glitches.
+    // Runs infrequently (~5 min at idle) to avoid visible flicker from DISPON.
     keepalive_counter++;
-    if (keepalive_counter >= 60) {  // ~30s at idle (500ms period), ~2s at 30Hz
+    if (keepalive_counter >= 600) {  // ~5min at idle (500ms), ~20s at 30Hz
         keepalive_counter = 0;
         const struct device *disp = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
         if (device_is_ready(disp)) {
             display_blanking_off(disp);
-        }
-        // Force full screen invalidation to ensure LVGL redraws everything
-        lv_obj_t *scr = lv_scr_act();
-        if (scr) {
-            lv_obj_invalidate(scr);
         }
     }
 }
