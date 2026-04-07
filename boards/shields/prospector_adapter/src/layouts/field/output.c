@@ -185,15 +185,7 @@ int zmk_widget_output_init(struct zmk_widget_output *widget, lv_obj_t *parent) {
     lv_obj_align(widget->profile_label, LV_ALIGN_RIGHT_MID, -5, 4);
 
     if (sys_slist_is_empty(&widgets)) {
-        active_profile_index = zmk_ble_active_profile_index();
-        struct zmk_endpoint_instance selected = zmk_endpoint_get_selected();
-        active_transport = selected.transport;
-
-        if (active_transport != ZMK_TRANSPORT_BLE) {
-            lv_obj_set_style_opa(widget->container, 0, LV_PART_MAIN);
-        } else {
-            output_visible = true;
-        }
+        lv_obj_set_style_opa(widget->container, 0, LV_PART_MAIN);
     }
 
     update_output_widget(widget, active_profile_index);
