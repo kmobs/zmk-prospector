@@ -159,8 +159,10 @@ static int ble_active_profile_changed_listener(const zmk_event_t *eh) {
 ZMK_LISTENER(widget_output_endpoint, endpoint_changed_listener);
 ZMK_SUBSCRIPTION(widget_output_endpoint, zmk_endpoint_changed);
 
+#if IS_ENABLED(CONFIG_ZMK_BLE)
 ZMK_LISTENER(widget_output_profile, ble_active_profile_changed_listener);
 ZMK_SUBSCRIPTION(widget_output_profile, zmk_ble_active_profile_changed);
+#endif /* IS_ENABLED(CONFIG_ZMK_BLE) */
 
 int zmk_widget_output_init(struct zmk_widget_output *widget, lv_obj_t *parent) {
     widget->container = lv_obj_create(parent);
