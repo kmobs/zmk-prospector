@@ -7,6 +7,8 @@
 #include <zephyr/types.h>
 #include <zephyr/init.h>
 
+#if IS_ENABLED(CONFIG_ZMK_BLE)
+
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/hci.h>
@@ -192,3 +194,5 @@ static int zmk_split_bt_central_init(void) {
 }
 
 SYS_INIT(zmk_split_bt_central_init, APPLICATION, CONFIG_ZMK_BLE_INIT_PRIORITY);
+
+#endif /* IS_ENABLED(CONFIG_ZMK_BLE) */
